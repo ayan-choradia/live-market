@@ -1,16 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import axios from 'axios';
-
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
 
 interface SpeakerNews {
   title: string;
   pubDate: string;
   sentiment: 'HAWKISH' | 'DOVISH' | 'NEUTRAL';
 }
+
+// Simple rule-based sentiment analysis for Fed headlines
+const analyzeSentiment = (title: string): 'HAWKISH' | 'DOVISH' | 'NEUTRAL' => {
+  const t = title.toLowerCase();
+  
+  const hawkishKeywords = ['hike', 'raise', 'increase', 'tighten', 'inflation', 'strong', 'above target', 'restrictive', 'higher for longer'];
+  const dovishKeywords = ['cut', 'lower', 'decrease', 'ease', 'soften', 'weak', 'below target', 'accommodative', 'recession', 'slowdown'];
+
+  if (hawkishKeywords.some(k => t.includes(k))) return 'HAWKISH';
+  if (dovishKeywords.some(k => t.includes(k))) return 'DOVISH';
+  return 'NEUTRAL';
+};
 
 export default function RightPanel() {
   const [news, setNews] = useState<SpeakerNews[]>([]);
@@ -24,46 +33,16 @@ export default function RightPanel() {
         const xml = parser.parseFromString(res.data, 'text/xml');
         const items = Array.from(xml.querySelectorAll('item')).slice(0, 5);
         
-        const parsedItems = items.map(item => ({
-          title: item.querySelector('title')?.textContent || '',
-          pubDate: item.querySelector('pubDate')?.textContent || '',
-        }));
-
-        // Use Gemini to analyze sentiment
-        const prompt = `Analyze the following Federal Reserve press release headlines and classify their sentiment regarding monetary policy as HAWKISH, DOVISH, or NEUTRAL.
-        
-        Headlines:
-        ${parsedItems.map((item, i) => `${i + 1}. ${item.title}`).join('\n')}
-        `;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  sentiment: {
-                    type: Type.STRING,
-                    description: "HAWKISH, DOVISH, or NEUTRAL"
-                  }
-                }
-              }
-            }
-          }
+        const parsedItems = items.map(item => {
+          const title = item.querySelector('title')?.textContent || '';
+          return {
+            title,
+            pubDate: item.querySelector('pubDate')?.textContent || '',
+            sentiment: analyzeSentiment(title)
+          };
         });
 
-        const sentiments = JSON.parse(response.text || '[]');
-        
-        const newsWithSentiment = parsedItems.map((item, i) => ({
-          ...item,
-          sentiment: sentiments[i]?.sentiment || 'NEUTRAL'
-        }));
-
-        setNews(newsWithSentiment);
+        setNews(parsedItems);
       } catch (err) {
         console.error('Failed to fetch news', err);
       } finally {
@@ -115,7 +94,7 @@ export default function RightPanel() {
         <h2 className="text-zinc-500 text-xs font-bold mb-2">FED SPEAKERS FEED</h2>
         <div className="space-y-4 mt-4">
           {loading ? (
-            <div className="text-xs text-zinc-500 animate-pulse">Analyzing sentiment...</div>
+            <div className="text-xs text-zinc-500 animate-pulse">Loading feed...</div>
           ) : (
             news.map((item, i) => (
               <div key={i} className={`border-l-2 pl-3 ${item.sentiment === 'HAWKISH' ? 'border-red-500' : item.sentiment === 'DOVISH' ? 'border-emerald-500' : 'border-zinc-500'}`}>

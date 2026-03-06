@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { useStore } from '@/store/useStore';
 
-const QH_API_BASE = 'https://qh-api.corp.hertshtengroup.com';
-
 export const qhApi = axios.create({
-  baseURL: QH_API_BASE,
+  baseURL: '', // Use relative URL to hit Next.js API routes
 });
 
 qhApi.interceptors.request.use((config) => {

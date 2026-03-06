@@ -10,7 +10,7 @@ export default function Header() {
   const { fedRate, rrpBalance, sofrRate, qtMode } = useStore();
 
   useEffect(() => {
-    setMounted(true);
+    Promise.resolve().then(() => setMounted(true));
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);

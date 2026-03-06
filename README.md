@@ -1,20 +1,44 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# QH Liquidity Terminal - Local Setup Guide
 
-# Run and deploy your AI Studio app
+This guide will help you set up the application locally or on Vercel.
 
-This contains everything you need to run your app locally.
+## Prerequisites
 
-View your app in AI Studio: https://ai.studio/apps/6036f121-d75e-4fa5-929b-bfb099b50b93
+- Node.js 18+
+- A FRED API Key (for economic data)
 
-## Run Locally
+## Environment Variables
 
-**Prerequisites:**  Node.js
+Create a `.env.local` file in the root directory and add the following variables:
 
+```env
+# FRED API Key: Get one at https://fred.stlouisfed.org/docs/api/api_key.html
+FRED_API_KEY="your_fred_api_key"
+```
+
+## Local Development
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+
+2. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Deployment on Vercel
+
+1. Push your code to a GitHub repository.
+2. Import the project into Vercel.
+3. In the "Environment Variables" section of the project settings, add:
+   - `FRED_API_KEY`
+4. Deploy!
+
+## Troubleshooting
+
+### Chart Width/Height Warning
+This is a known warning from Recharts when the container is still calculating its size. It does not affect the functionality of the app.
