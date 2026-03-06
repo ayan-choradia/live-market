@@ -13,8 +13,13 @@ export default function CenterPanel() {
   const [volumeSeries, setVolumeSeries] = useState<ISeriesApi<"Histogram"> | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
+ useEffect(() => {
+  // Check if ref exists AND has dimensions
+  if (!chartContainerRef.current || 
+      chartContainerRef.current.clientWidth <= 0 || 
+      chartContainerRef.current.clientHeight <= 0) {
+    return;
+  }
 
     const newChart = createChart(chartContainerRef.current, {
       layout: {
@@ -170,7 +175,8 @@ export default function CenterPanel() {
       </div>
 
       {/* Chart Container */}
-      <div className="flex-1 relative" ref={chartContainerRef} />
+      {/* Change this in CenterPanel.tsx */}
+<div className="flex-1 relative min-h-[400px]" ref={chartContainerRef} />
     </div>
   );
 }
