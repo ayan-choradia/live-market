@@ -66,13 +66,18 @@ export default function ForwardCurveChart() {
             price: latestPrices[code] || null
           })).filter(item => item.price !== null);
 
-          setData(chartData);
+          if (chartData.length === 0) {
+            setError('No valid price data found for the generated contracts.');
+          } else {
+            setData(chartData);
+          }
         } else {
           setError('No results found in response.');
         }
       } catch (err: any) {
         console.error('Failed to fetch forward curve data', err);
-        setError(err.message || 'Failed to fetch data');
+        const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Failed to fetch data';
+        setError(`Error: ${errorMessage}`);
       } finally {
         setLoading(false);
       }

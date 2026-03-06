@@ -1,92 +1,24 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import { useEffect, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { qhApi } from '@/lib/api';
 import ForwardCurveChart from './ForwardCurveChart';
+import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function CenterPanel() {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
   const { selectedProduct, setSelectedProduct, interval, setInterval, qhToken } = useStore();
-  const [chart, setChart] = useState<IChartApi | null>(null);
-  const [candlestickSeries, setCandlestickSeries] = useState<ISeriesApi<"Candlestick"> | null>(null);
-  const [volumeSeries, setVolumeSeries] = useState<ISeriesApi<"Histogram"> | null>(null);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'OHLC' | 'FORWARD_CURVE'>('OHLC');
 
   useEffect(() => {
-    if (activeTab !== 'OHLC' || !chartContainerRef.current) return;
-
-    const newChart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: '#09090b' },
-        textColor: '#a1a1aa',
-      },
-      grid: {
-        vertLines: { color: '#27272a' },
-        horzLines: { color: '#27272a' },
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      rightPriceScale: {
-        borderColor: '#27272a',
-      },
-    });
-
-    const newSeries = newChart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-    });
-
-    const newVolumeSeries = newChart.addSeries(HistogramSeries, {
-      color: '#26a69a',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: '', // set as an overlay by setting a blank priceScaleId
-    });
-
-    newVolumeSeries.priceScale().applyOptions({
-      scaleMargins: {
-        top: 0.8, // highest point of the series will be at 80% of the chart height
-        bottom: 0,
-      },
-    });
-
-    setChart(newChart);
-    setCandlestickSeries(newSeries);
-    setVolumeSeries(newVolumeSeries);
-
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        newChart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      newChart.remove();
-    };
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab !== 'OHLC' || !qhToken || !candlestickSeries || !volumeSeries) return;
+    if (activeTab !== 'OHLC' || !qhToken) return;
 
     const fetchData = async () => {
       setLoading(true);
+      setError('');
       try {
         const end = Math.floor(Date.now() / 1000);
         const start = end - (30 * 24 * 60 * 60); // 30 days ago
@@ -101,32 +33,35 @@ export default function CenterPanel() {
         });
 
         if (res.data && res.data[selectedProduct]) {
-          const ohlcData = res.data[selectedProduct].map((d: any) => ({
-            time: d.timestamp,
-            open: d.open,
-            high: d.high,
-            low: d.low,
-            close: d.close,
-          })).sort((a: any, b: any) => a.time - b.time);
+          const formattedData = res.data[selectedProduct].map((d: any) => {
+            const date = new Date(d.timestamp * 1000);
+            return {
+              time: d.timestamp,
+              dateStr: date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              open: d.open,
+              high: d.high,
+              low: d.low,
+              close: d.close,
+              volume: d.volume,
+              isUp: d.close >= d.open
+            };
+          }).sort((a: any, b: any) => a.time - b.time);
 
-          const volData = res.data[selectedProduct].map((d: any) => ({
-            time: d.timestamp,
-            value: d.volume,
-            color: d.close >= d.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'
-          })).sort((a: any, b: any) => a.time - b.time);
-
-          candlestickSeries.setData(ohlcData);
-          volumeSeries.setData(volData);
+          setData(formattedData);
+        } else {
+          setError('No data returned for this product.');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch OHLC data', err);
+        const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Failed to fetch data';
+        setError(`Error: ${errorMessage}`);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [qhToken, selectedProduct, interval, candlestickSeries, volumeSeries, activeTab]);
+  }, [qhToken, selectedProduct, interval, activeTab]);
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 relative">
@@ -138,7 +73,7 @@ export default function CenterPanel() {
               className={`px-3 py-0.5 text-xs rounded ${activeTab === 'OHLC' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
               onClick={() => setActiveTab('OHLC')}
             >
-              OHLC
+              PRICE CHART
             </button>
             <button
               className={`px-3 py-0.5 text-xs rounded ${activeTab === 'FORWARD_CURVE' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
@@ -177,26 +112,74 @@ export default function CenterPanel() {
           
           {loading && activeTab === 'OHLC' && <span className="text-xs text-zinc-500 animate-pulse">LOADING...</span>}
         </div>
-
-        <div className="flex items-center space-x-4">
-          {activeTab === 'OHLC' && (
-            <>
-              <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200">
-                <input type="checkbox" className="accent-emerald-500" defaultChecked />
-                <span>TAS Overlay</span>
-              </label>
-              <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200">
-                <input type="checkbox" className="accent-emerald-500" />
-                <span>Greeks</span>
-              </label>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Chart Container */}
       {activeTab === 'OHLC' ? (
-        <div className="flex-1 relative" ref={chartContainerRef} />
+        <div className="flex-1 relative p-4 flex flex-col">
+          {error ? (
+            <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs">
+              {error}
+            </div>
+          ) : data.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis 
+                  dataKey="dateStr" 
+                  stroke="#a1a1aa" 
+                  fontSize={10} 
+                  tickMargin={10}
+                  axisLine={false}
+                  tickLine={false}
+                  minTickGap={50}
+                />
+                <YAxis 
+                  yAxisId="price"
+                  stroke="#a1a1aa" 
+                  fontSize={10} 
+                  domain={['auto', 'auto']}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => value.toFixed(2)}
+                />
+                <YAxis 
+                  yAxisId="volume"
+                  orientation="right"
+                  stroke="#a1a1aa" 
+                  fontSize={10} 
+                  domain={[0, 'dataMax * 3']} // Keep volume at the bottom
+                  axisLine={false}
+                  tickLine={false}
+                  hide={true}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '4px' }}
+                  itemStyle={{ color: '#10b981' }}
+                  labelStyle={{ color: '#a1a1aa', marginBottom: '4px' }}
+                />
+                <Bar yAxisId="volume" dataKey="volume" fill="#26a69a" opacity={0.3}>
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.isUp ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+                <Line 
+                  yAxisId="price"
+                  type="monotone" 
+                  dataKey="close" 
+                  stroke="#10b981" 
+                  strokeWidth={2} 
+                  dot={false}
+                  activeDot={{ r: 4, fill: '#10b981' }} 
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">
+              NO DATA AVAILABLE
+            </div>
+          )}
+        </div>
       ) : (
         <ForwardCurveChart />
       )}

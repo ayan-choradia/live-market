@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
-import https from 'https';
 
 export async function GET(request: Request) {
+  // Ignore SSL certificate errors globally for this route
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
   try {
     const { searchParams } = new URL(request.url);
     const instruments = searchParams.get('instruments');
@@ -13,37 +14,34 @@ export async function GET(request: Request) {
 
     const authHeader = request.headers.get('Authorization');
 
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: false,
-    });
+    const targetUrl = new URL('https://qh-api.corp.hertshtengroup.com/api/v2/ohlc/');
+    if (instruments) targetUrl.searchParams.append('instruments', instruments);
+    if (interval) targetUrl.searchParams.append('interval', interval);
+    if (count) targetUrl.searchParams.append('count', count);
+    if (end) targetUrl.searchParams.append('end', end);
+    if (start) targetUrl.searchParams.append('start', start);
 
-    const res = await axios.get('https://qh-api.corp.hertshtengroup.com/api/v2/ohlc/', {
-      params: {
-        instruments,
-        interval,
-        count,
-        end,
-        start
-      },
+    const res = await fetch(targetUrl.toString(), {
       headers: {
-        Authorization: authHeader
+        ...(authHeader ? { 'Authorization': authHeader } : {})
       },
-      httpsAgent
+      cache: 'no-store'
     });
 
-    return NextResponse.json(res.data);
-  } catch (error: any) {
-    console.error('API Route OHLC Error:', error.response?.data || error.message);
-    
-    if (error.response) {
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
       return NextResponse.json(
-        error.response.data,
-        { status: error.response.status }
+        data || { detail: `API Error: ${res.status} ${res.statusText}` },
+        { status: res.status }
       );
     }
-    
+
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('API Route OHLC Error:', error);
     return NextResponse.json(
-      { detail: 'Internal Server Error' },
+      { detail: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }

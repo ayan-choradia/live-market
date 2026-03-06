@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
-import https from 'https';
 
 export async function GET(request: Request) {
+  // Ignore SSL certificate errors globally for this route
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
@@ -10,35 +11,31 @@ export async function GET(request: Request) {
 
     const authHeader = request.headers.get('Authorization');
 
-    // Create an HTTPS agent that ignores SSL certificate errors (equivalent to verify=False in Python)
-    const httpsAgent = new https.Agent({
-      rejectUnauthorized: false,
-    });
+    const targetUrl = new URL('https://qh-api.corp.hertshtengroup.com/api/dailymarketdata/');
+    if (limit) targetUrl.searchParams.append('limit', limit);
+    if (qhcode) targetUrl.searchParams.append('qhcode', qhcode);
 
-    const res = await axios.get('https://qh-api.corp.hertshtengroup.com/api/dailymarketdata/', {
-      params: {
-        limit,
-        qhcode
-      },
+    const res = await fetch(targetUrl.toString(), {
       headers: {
-        Authorization: authHeader
+        ...(authHeader ? { 'Authorization': authHeader } : {})
       },
-      httpsAgent
+      cache: 'no-store'
     });
 
-    return NextResponse.json(res.data);
-  } catch (error: any) {
-    console.error('API Route DailyMarketData Error:', error.response?.data || error.message);
-    
-    if (error.response) {
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
       return NextResponse.json(
-        error.response.data,
-        { status: error.response.status }
+        data || { detail: `API Error: ${res.status} ${res.statusText}` },
+        { status: res.status }
       );
     }
-    
+
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('API Route DailyMarketData Error:', error);
     return NextResponse.json(
-      { detail: 'Internal Server Error' },
+      { detail: error.message || 'Internal Server Error' },
       { status: 500 }
     );
   }

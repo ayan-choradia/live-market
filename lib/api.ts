@@ -8,7 +8,7 @@ export const qhApi = axios.create({
 qhApi.interceptors.request.use((config) => {
   const token = useStore.getState().qhToken;
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   }
   return config;
 });
