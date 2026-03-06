@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import { useStore } from '@/store/useStore';
 import { qhApi } from '@/lib/api';
+import ForwardCurveChart from './ForwardCurveChart';
 
 export default function CenterPanel() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -12,14 +13,10 @@ export default function CenterPanel() {
   const [candlestickSeries, setCandlestickSeries] = useState<ISeriesApi<"Candlestick"> | null>(null);
   const [volumeSeries, setVolumeSeries] = useState<ISeriesApi<"Histogram"> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'OHLC' | 'FORWARD_CURVE'>('OHLC');
 
- useEffect(() => {
-  // Check if ref exists AND has dimensions
-  if (!chartContainerRef.current || 
-      chartContainerRef.current.clientWidth <= 0 || 
-      chartContainerRef.current.clientHeight <= 0) {
-    return;
-  }
+  useEffect(() => {
+    if (activeTab !== 'OHLC' || !chartContainerRef.current) return;
 
     const newChart = createChart(chartContainerRef.current, {
       layout: {
@@ -83,10 +80,10 @@ export default function CenterPanel() {
       window.removeEventListener('resize', handleResize);
       newChart.remove();
     };
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
-    if (!qhToken || !candlestickSeries || !volumeSeries) return;
+    if (activeTab !== 'OHLC' || !qhToken || !candlestickSeries || !volumeSeries) return;
 
     const fetchData = async () => {
       setLoading(true);
@@ -129,54 +126,80 @@ export default function CenterPanel() {
     };
 
     fetchData();
-  }, [qhToken, selectedProduct, interval, candlestickSeries, volumeSeries]);
+  }, [qhToken, selectedProduct, interval, candlestickSeries, volumeSeries, activeTab]);
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 relative">
       {/* Toolbar */}
       <div className="h-12 border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
         <div className="flex items-center space-x-4">
-          <select 
-            className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-2 py-1 outline-none focus:border-emerald-500"
-            value={selectedProduct}
-            onChange={(e) => setSelectedProduct(e.target.value)}
-          >
-            <option value="SRAH26">SRAH26 (SOFR)</option>
-            <option value="ZN">ZN (10Y Note)</option>
-            <option value="ES">ES (S&P 500)</option>
-            <option value="CL">CL (Crude)</option>
-          </select>
-
           <div className="flex bg-zinc-900 rounded border border-zinc-700 p-0.5">
-            {['1M', '5M', '1H', '1D'].map((int) => (
-              <button
-                key={int}
-                className={`px-3 py-0.5 text-xs rounded ${interval === int ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
-                onClick={() => setInterval(int)}
-              >
-                {int}
-              </button>
-            ))}
+            <button
+              className={`px-3 py-0.5 text-xs rounded ${activeTab === 'OHLC' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+              onClick={() => setActiveTab('OHLC')}
+            >
+              OHLC
+            </button>
+            <button
+              className={`px-3 py-0.5 text-xs rounded ${activeTab === 'FORWARD_CURVE' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+              onClick={() => setActiveTab('FORWARD_CURVE')}
+            >
+              FORWARD CURVE
+            </button>
           </div>
+
+          {activeTab === 'OHLC' && (
+            <>
+              <select 
+                className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-2 py-1 outline-none focus:border-emerald-500"
+                value={selectedProduct}
+                onChange={(e) => setSelectedProduct(e.target.value)}
+              >
+                <option value="SRAH26">SRAH26 (SOFR)</option>
+                <option value="ZN">ZN (10Y Note)</option>
+                <option value="ES">ES (S&P 500)</option>
+                <option value="CL">CL (Crude)</option>
+              </select>
+
+              <div className="flex bg-zinc-900 rounded border border-zinc-700 p-0.5">
+                {['1M', '5M', '1H', '1D'].map((int) => (
+                  <button
+                    key={int}
+                    className={`px-3 py-0.5 text-xs rounded ${interval === int ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    onClick={() => setInterval(int)}
+                  >
+                    {int}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           
-          {loading && <span className="text-xs text-zinc-500 animate-pulse">LOADING...</span>}
+          {loading && activeTab === 'OHLC' && <span className="text-xs text-zinc-500 animate-pulse">LOADING...</span>}
         </div>
 
         <div className="flex items-center space-x-4">
-          <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200">
-            <input type="checkbox" className="accent-emerald-500" defaultChecked />
-            <span>TAS Overlay</span>
-          </label>
-          <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200">
-            <input type="checkbox" className="accent-emerald-500" />
-            <span>Greeks</span>
-          </label>
+          {activeTab === 'OHLC' && (
+            <>
+              <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200">
+                <input type="checkbox" className="accent-emerald-500" defaultChecked />
+                <span>TAS Overlay</span>
+              </label>
+              <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200">
+                <input type="checkbox" className="accent-emerald-500" />
+                <span>Greeks</span>
+              </label>
+            </>
+          )}
         </div>
       </div>
 
       {/* Chart Container */}
-      {/* Change this in CenterPanel.tsx */}
-<div className="flex-1 relative min-h-[400px]" ref={chartContainerRef} />
+      {activeTab === 'OHLC' ? (
+        <div className="flex-1 relative" ref={chartContainerRef} />
+      ) : (
+        <ForwardCurveChart />
+      )}
     </div>
   );
 }

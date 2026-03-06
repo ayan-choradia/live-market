@@ -20,7 +20,7 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set) => ({
-  qhToken: null,
+  qhToken: process.env.NEXT_PUBLIC_QH_API_TOKEN || 'your_token',
   setQhToken: (token) => set({ qhToken: token }),
   selectedProduct: 'SRAH26',
   setSelectedProduct: (product) => set({ selectedProduct: product }),

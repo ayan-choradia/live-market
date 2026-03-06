@@ -5,25 +5,20 @@ import https from 'https';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const instruments = searchParams.get('instruments');
-    const interval = searchParams.get('interval');
-    const count = searchParams.get('count');
-    const end = searchParams.get('end');
-    const start = searchParams.get('start');
+    const limit = searchParams.get('limit');
+    const qhcode = searchParams.get('qhcode');
 
     const authHeader = request.headers.get('Authorization');
 
+    // Create an HTTPS agent that ignores SSL certificate errors (equivalent to verify=False in Python)
     const httpsAgent = new https.Agent({
       rejectUnauthorized: false,
     });
 
-    const res = await axios.get('https://qh-api.corp.hertshtengroup.com/api/v2/ohlc/', {
+    const res = await axios.get('https://qh-api.corp.hertshtengroup.com/api/dailymarketdata/', {
       params: {
-        instruments,
-        interval,
-        count,
-        end,
-        start
+        limit,
+        qhcode
       },
       headers: {
         Authorization: authHeader
@@ -33,7 +28,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(res.data);
   } catch (error: any) {
-    console.error('API Route OHLC Error:', error.response?.data || error.message);
+    console.error('API Route DailyMarketData Error:', error.response?.data || error.message);
     
     if (error.response) {
       return NextResponse.json(

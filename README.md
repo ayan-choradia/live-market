@@ -14,6 +14,9 @@ Create a `.env.local` file in the root directory and add the following variables
 ```env
 # FRED API Key: Get one at https://fred.stlouisfed.org/docs/api/api_key.html
 FRED_API_KEY="your_fred_api_key"
+
+# QH API Token: Your authentication token for the QH API
+NEXT_PUBLIC_QH_API_TOKEN="your_qh_api_token"
 ```
 
 ## Local Development
