@@ -1,0 +1,5 @@
+{
+  "name": "QH Liquidity & Markets Intelligence",
+  "description": "A Bloomberg-terminal style dashboard for tracking liquidity factors, Treasury issuances, Fed balance sheet, and market intelligence.",
+  "requestFramePermissions": []
+}
